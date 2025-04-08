@@ -3,6 +3,6 @@
 
 CFG_TEE_TA_LOG_LEVEL ?= 4
 
-BINARY=3d969d36-f8fb-4e45-afe4-debefd16ba0e
+BINARY=522fa39d-b734-4b30-9c5a-5741db2084ae
 
 include $(TA_DEV_KIT_DIR)/mk/ta_dev_kit.mk

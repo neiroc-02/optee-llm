@@ -29,7 +29,7 @@
 #include <tee_internal_api_extensions.h>
 
 //#include <hello_world_ta.h>
-#include <optee_logger_ta.h> 	// CHANGED TA FILE HEADER
+#include <optee_llm_ta.h> 	// CHANGED TA FILE HEADER
 
 /*
  * Called when the instance of the TA is created. This is the first call in
@@ -146,9 +146,9 @@ TEE_Result TA_InvokeCommandEntryPoint(void __maybe_unused *sess_ctx,
 	(void)&sess_ctx; /* Unused parameter */
 
 	switch (cmd_id) {
-	case TA_OPTEE_LOGGER_CMD_INC_VALUE: 		//CHANGED THE COMMAND NAMES IN THE CASES
+	case TA_OPTEE_LLM_CMD_INC_VALUE: 		//CHANGED THE COMMAND NAMES IN THE CASES
 		return inc_value(param_types, params);
-	case TA_OPTEE_LOGGER_CMD_DEC_VALUE:
+	case TA_OPTEE_LLM_CMD_DEC_VALUE:
 		return dec_value(param_types, params);
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;

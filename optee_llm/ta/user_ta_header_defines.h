@@ -34,9 +34,9 @@
 
 /* To get the TA UUID definition */
 //#include <hello_world_ta.h>
-#include <optee_logger_ta.h>
+#include <optee_llm_ta.h>
 
-#define TA_UUID				TA_OPTEE_LOGGER_UUID
+#define TA_UUID				TA_OPTEE_LLM_UUID
 
 /*
  * TA properties: multi-instance TA, no specific attribute
@@ -54,7 +54,7 @@
 #define TA_VERSION	"1.0"
 
 /* The gpd.ta.description property */
-#define TA_DESCRIPTION	"OP-TEE Logger Trusted Application"
+#define TA_DESCRIPTION	"OP-TEE LLM Trusted Application"
 
 /* Extra properties */
 

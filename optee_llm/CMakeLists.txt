@@ -1,4 +1,4 @@
-project (optee_logger C) # CHANGED NAME HERE
+project (optee_llm C) # CHANGED NAME HERE
 
 set (SRC host/main.c)
 

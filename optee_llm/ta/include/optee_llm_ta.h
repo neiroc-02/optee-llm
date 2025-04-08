@@ -25,8 +25,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
- #ifndef TA_OPTEE_LOGGER_H	//CHANGED HEADER GUARDS
-#define TA_OPTEE_LOGGER_H
+#ifndef TA_OPTEE_LLM_H	//CHANGED HEADER GUARDS
+#define TA_OPTEE_LLM_H
 
 /*
  * This UUID is generated with uuidgen
@@ -34,12 +34,16 @@
  */
 
 //NOTE: CHANGED BINARY HERE!!!
-#define TA_OPTEE_LOGGER_UUID \
+//#define TA_OPTEE_LOGGER_UUID \
 	{ 0x3d969d36, 0xf8fb, 0x4e45, \
 		{ 0xaf, 0xe4, 0xde, 0xbe, 0xfd, 0x16, 0xba, 0x0e} }
 
-/* The function IDs implemented in this TA */
-#define TA_OPTEE_LOGGER_CMD_INC_VALUE		0			// CHANGED THE NAME OF THE FUNCTIONS
-#define TA_OPTEE_LOGGER_CMD_DEC_VALUE		1
+#define TA_OPTEE_LLM_UUID \
+	{ 0x522fa39d, 0xb734, 0x4b30, \
+		{ 0x9c, 0x5a, 0x57, 0x41, 0xdb, 0x20, 0x84, 0xae} }
 
-#endif /*TA_HELLO_WORLD_H*/
+/* The function IDs implemented in this TA */
+#define TA_OPTEE_LLM_CMD_INC_VALUE		0			// CHANGED THE NAME OF THE FUNCTIONS
+#define TA_OPTEE_LLM_CMD_DEC_VALUE		1
+
+#endif /*TA_OPTEE_LLM_H*/

@@ -46,14 +46,14 @@ This is how I would compile the app from __my__ file structure. Yours may be a l
 4. Find the executable files here:
 `cd /opt/Jetson_LinuxR35.4.1_aarch64/Linux_for_Tegra/sources/tegra/optee-src/nv-optee/optee/install/t234/usr/sbin`
 5. Find the ta files here:
-`cd /opt/Jetson_LinuxR35.4.1_aarch64/Linux_for_Tegra/sources/tegra/optee-src/nv-optee/optee/build/t234/ta/optee_logger`
+`cd /opt/Jetson_LinuxR35.4.1_aarch64/Linux_for_Tegra/sources/tegra/optee-src/nv-optee/optee/build/t234/ta/optee_llm`
 6. Transfer all those files into the Jetson Board
 
 In our case, our Jetson board is structured where we place the specific files here...
 - Place the executable in `/usr/sbin`
 - Place the ta files in `/lib/optee_armtz5`
 
-Then run the executable with `sudo ./optee_logger`
+Then run the executable with `sudo ./optee_llm`
 
 ## Resources
 OP-TEE Docs:
