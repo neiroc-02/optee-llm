@@ -34,9 +34,20 @@
  */
 
 //NOTE: CHANGED BINARY HERE!!!
-//#define TA_OPTEE_LOGGER_UUID \
-	{ 0x3d969d36, 0xf8fb, 0x4e45, \
-		{ 0xaf, 0xe4, 0xde, 0xbe, 0xfd, 0x16, 0xba, 0x0e} }
+#include <stdint.h>
+
+typedef struct {
+    uint32_t batch_size;
+    uint32_t seq_length;
+    uint32_t in_channels;
+} tensor_dims_t;
+
+// Fixed dimensions for the LoRA branch (expected input channels)
+#define IN_CHANNELS 2048
+#define RANK 4
+#define OUT_CHANNELS 3
+#define MAX_BATCH_SIZE 8
+#define MAX_SEQ_LENGTH 128
 
 #define TA_OPTEE_LLM_UUID \
 	{ 0x522fa39d, 0xb734, 0x4b30, \
@@ -45,5 +56,6 @@
 /* The function IDs implemented in this TA */
 #define TA_OPTEE_LLM_CMD_INC_VALUE		0			// CHANGED THE NAME OF THE FUNCTIONS
 #define TA_OPTEE_LLM_CMD_DEC_VALUE		1
+#define TA_OPTEE_LLM_CMD_LORA		        2
 
 #endif /*TA_OPTEE_LLM_H*/

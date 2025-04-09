@@ -27,9 +27,163 @@
 
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
+#include <optee_llm_ta.h> // CHANGED TA FILE HEADER
 
-//#include <hello_world_ta.h>
-#include <optee_llm_ta.h> 	// CHANGED TA FILE HEADER
+// Populate these with random data, eventually the right weights
+float lora_B[RANK][IN_CHANNELS];
+float lora_A[OUT_CHANNELS][RANK];
+
+// Helper function to initialize the random data
+static void populate_random_data(void)
+{
+    uint32_t rand_val;
+    // Populate lora_B.
+    for (int r = 0; r < RANK; r++) {
+        for (int c = 0; c < IN_CHANNELS; c++) {
+            TEE_GenerateRandom(&rand_val, sizeof(rand_val));
+            // Create a float in [0, 1). Adjust scaling as needed.
+            lora_B[r][c] = (rand_val % 100) / 100.0f;
+        }
+    }
+    // Populate lora_A.
+    for (int o = 0; o < OUT_CHANNELS; o++) {
+        for (int r = 0; r < RANK; r++) {
+            TEE_GenerateRandom(&rand_val, sizeof(rand_val));
+            lora_A[o][r] = (rand_val % 100) / 100.0f;
+        }
+    }
+}
+
+// Forward pass functions as defined earlier.
+static void matmul_B(const float x[IN_CHANNELS],
+	      const float B[RANK][IN_CHANNELS],
+	      float intermediate[RANK])
+{
+	for (int r = 0; r < RANK; r++)
+	{
+		float sum = 0.0f;
+		for (int c = 0; c < IN_CHANNELS; c++)
+		{
+			sum += x[c] * B[r][c];
+		}
+		intermediate[r] = sum;
+	}
+}
+
+static void matmul_A(const float intermediate[RANK],
+	      const float A[OUT_CHANNELS][RANK],
+	      float output[OUT_CHANNELS])
+{
+	for (int out = 0; out < OUT_CHANNELS; out++)
+	{
+		float sum = 0.0f;
+		for (int r = 0; r < RANK; r++)
+		{
+			sum += intermediate[r] * A[out][r];
+		}
+		output[out] = sum;
+	}
+}
+
+static void lora_forward_token(const float x[IN_CHANNELS],
+			const float B[RANK][IN_CHANNELS],
+			const float A[OUT_CHANNELS][RANK],
+			float scale,
+			float output[OUT_CHANNELS])
+{
+	float intermediate[RANK];
+	matmul_B(x, B, intermediate);
+	matmul_A(intermediate, A, output);
+	for (int i = 0; i < OUT_CHANNELS; i++)
+	{
+		output[i] *= scale;
+	}
+}
+
+// Runs LoRA inference for a single sample with a variable sequence length.
+static void lora_forward_sample(const float *input_sample,
+				uint32_t seq_length,
+				const float B[RANK][IN_CHANNELS],
+				const float A[OUT_CHANNELS][RANK],
+				float scale,
+				float output_sample[OUT_CHANNELS])
+{
+	// Temporary buffer for token-level output.
+	float token_output[OUT_CHANNELS];
+	// Initialize the sample output.
+	for (int i = 0; i < OUT_CHANNELS; i++)
+	{
+		output_sample[i] = 0.0f;
+	}
+	// Process each token.
+	for (uint32_t token = 0; token < seq_length; token++)
+	{
+		// Calculate pointer offset for this token.
+		const float *x = input_sample + token * IN_CHANNELS;
+		lora_forward_token(x, B, A, scale, token_output);
+		for (int i = 0; i < OUT_CHANNELS; i++)
+		{
+			output_sample[i] += token_output[i];
+		}
+	}
+	// Compute the average over the sequence tokens.
+	for (int i = 0; i < OUT_CHANNELS; i++)
+	{
+		output_sample[i] /= seq_length;
+	}
+}
+
+
+// Main inference function
+static TEE_Result run_lora_inference(uint32_t param_types, TEE_Param params[4])
+{
+	// Expected parameter types:
+	// Param0: Input tensor MEMREF
+	// Param1: Output tensor MEMREF
+	// Param2: Tensor dimensions passed as MEMREF
+	const float scale = 1.0f;
+	
+	const uint32_t expected_types =
+	    TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+			    TEE_PARAM_TYPE_MEMREF_OUTPUT,
+			    TEE_PARAM_TYPE_MEMREF_INPUT,
+			    TEE_PARAM_TYPE_NONE);
+	if (param_types != expected_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	// Get pointers to the buffers.
+	float *input = (float *)params[0].memref.buffer;
+	float *output = (float *)params[1].memref.buffer;
+
+	// Parse dimensions from param2.
+	if (params[2].memref.size < sizeof(tensor_dims_t))
+		return TEE_ERROR_BAD_PARAMETERS;
+	tensor_dims_t *dims = (tensor_dims_t *)params[2].memref.buffer;
+
+	// Validate dimensions.
+	if (dims->in_channels != IN_CHANNELS ||
+	    dims->batch_size > MAX_BATCH_SIZE ||
+	    dims->seq_length > MAX_SEQ_LENGTH)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	// Run the forward pass for each sample.
+	// The input tensor is assumed to be flattened in row-major order:
+	// [batch_size * seq_length * IN_CHANNELS]
+	for (uint32_t sample = 0; sample < dims->batch_size; sample++)
+	{
+		float sample_output[OUT_CHANNELS] = {0};
+		// Offset into the input for this sample.
+		const float *sample_input = input + sample * dims->seq_length * IN_CHANNELS;
+		lora_forward_sample(sample_input, dims->seq_length, lora_B, lora_A, scale, sample_output);
+		// Write sample output to the flat output buffer: [batch_size * OUT_CHANNELS]
+		for (int i = 0; i < OUT_CHANNELS; i++)
+		{
+			output[sample * OUT_CHANNELS + i] = sample_output[i];
+		}
+	}
+
+	return TEE_SUCCESS;
+}
 
 /*
  * Called when the instance of the TA is created. This is the first call in
@@ -38,7 +192,7 @@
 TEE_Result TA_CreateEntryPoint(void)
 {
 	DMSG("has been called");
-
+	populate_random_data();
 	return TEE_SUCCESS;
 }
 
@@ -58,8 +212,8 @@ void TA_DestroyEntryPoint(void)
  * TA.
  */
 TEE_Result TA_OpenSessionEntryPoint(uint32_t param_types,
-		TEE_Param __maybe_unused params[4],
-		void __maybe_unused **sess_ctx)
+				    TEE_Param __maybe_unused params[4],
+				    void __maybe_unused **sess_ctx)
 {
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE,
 						   TEE_PARAM_TYPE_NONE,
@@ -96,7 +250,7 @@ void TA_CloseSessionEntryPoint(void __maybe_unused *sess_ctx)
 }
 
 static TEE_Result inc_value(uint32_t param_types,
-	TEE_Param params[4])
+			    TEE_Param params[4])
 {
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
 						   TEE_PARAM_TYPE_NONE,
@@ -116,7 +270,7 @@ static TEE_Result inc_value(uint32_t param_types,
 }
 
 static TEE_Result dec_value(uint32_t param_types,
-	TEE_Param params[4])
+			    TEE_Param params[4])
 {
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
 						   TEE_PARAM_TYPE_NONE,
@@ -140,16 +294,19 @@ static TEE_Result dec_value(uint32_t param_types,
  * comes from normal world.
  */
 TEE_Result TA_InvokeCommandEntryPoint(void __maybe_unused *sess_ctx,
-			uint32_t cmd_id,
-			uint32_t param_types, TEE_Param params[4])
+				      uint32_t cmd_id,
+				      uint32_t param_types, TEE_Param params[4])
 {
 	(void)&sess_ctx; /* Unused parameter */
 
-	switch (cmd_id) {
-	case TA_OPTEE_LLM_CMD_INC_VALUE: 		//CHANGED THE COMMAND NAMES IN THE CASES
+	switch (cmd_id)
+	{
+	case TA_OPTEE_LLM_CMD_INC_VALUE: // CHANGED THE COMMAND NAMES IN THE CASES
 		return inc_value(param_types, params);
 	case TA_OPTEE_LLM_CMD_DEC_VALUE:
 		return dec_value(param_types, params);
+	case TA_OPTEE_LLM_CMD_LORA:
+		return run_lora_inference(param_types, params);
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}

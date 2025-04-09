@@ -6,17 +6,6 @@ Goals:
 - Start by getting a Hello World, then an Increment, then debug outputs
 - Just get familiar with the OP-TEE toolkit
 
-<!---
-Note:
-Packages I couldn't install
-- netcat (installed subversions of netcat)
-- lilibftdi-dev
-
-
-
-
---->
-
 ## Introduction
 
 ## Setup
@@ -38,7 +27,7 @@ Note: These setup steps are for the Jetson Orin Nano Board
 This is how I would compile the app from __my__ file structure. Yours may be a little different at the top depending on where you placed everything. I put it in `/opt`.
 
 1. Copy the development folder into:
-`cp -r optee_logger /opt/Jetson_LinuxR35.4.1_aarch64/Linux_for_Tegra/sources/tegra/optee-src/nv-optee/optee/samples/`
+`cp -r optee_llm /opt/Jetson_LinuxR35.4.1_aarch64/Linux_for_Tegra/sources/tegra/optee-src/nv-optee/optee/samples/`
 2. Move into the folder where `optee_src_build.sh` is:
 `cd /opt/Jetson_LinuxR35.4.1_aarch64/Linux_for_Tegra/sources/tegra/optee-src/nv-optee/`
 3. Run the build:
