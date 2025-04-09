@@ -192,7 +192,8 @@ static TEE_Result run_lora_inference(uint32_t param_types, TEE_Param params[4])
 TEE_Result TA_CreateEntryPoint(void)
 {
 	DMSG("has been called");
-	populate_random_data();
+	// FIXME: this may be causing lag???
+	// populate_random_data();
 	return TEE_SUCCESS;
 }
 
