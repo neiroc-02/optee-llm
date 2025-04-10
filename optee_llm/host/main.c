@@ -25,87 +25,141 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <err.h>
 #include <stdio.h>
 #include <string.h>
-
-/* OP-TEE TEE client API (built by optee_client) */
 #include <tee_client_api.h>
-
-/* For the UUID (found in the TA's h-file(s)) */
-// #include <hello_world_ta.h>
-//CHANGING THE HEADER FILE NAME IN TA's .h FILE
 #include <optee_llm_ta.h>
 
+#define INPUT_NUM_ELEMENTS (MAX_BATCH_SIZE * MAX_SEQ_LENGTH * IN_CHANNELS)
+#define INPUT_SIZE_BYTES (INPUT_NUM_ELEMENTS * sizeof(float))
+#define OUTPUT_NUM_ELEMENTS (MAX_BATCH_SIZE * OUT_CHANNELS)
+#define OUTPUT_SIZE_BYTES (OUTPUT_NUM_ELEMENTS * sizeof(float))
 
 int main(void)
 {
-	TEEC_Result res;
-	TEEC_Context ctx;
-	TEEC_Session sess;
-	TEEC_Operation op;
-	//TEEC_UUID uuid = TA_HELLO_WORLD_UUID;
-	//CHANGING THE UUID NAME IN THE OPTEE_LOGGER
-	TEEC_UUID uuid = TA_OPTEE_LLM_UUID;
-	uint32_t err_origin;
+    TEEC_Result res;
+    TEEC_Context context;
+    TEEC_Session session;
+    TEEC_Operation op;
+    TEEC_UUID uuid = TA_OPTEE_LLM_UUID;
+    TEEC_SharedMemory input_shm = {0};
+    TEEC_SharedMemory output_shm = {0};
+    TEEC_SharedMemory dims_shm = {0};
+    uint32_t err_origin;
 
-	/* Initialize a context connecting us to the TEE */
-	res = TEEC_InitializeContext(NULL, &ctx);
-	if (res != TEEC_SUCCESS)
-		errx(1, "TEEC_InitializeContext failed with code 0x%x", res);
+    /* Initialize a context connecting us to the TEE */
+    res = TEEC_InitializeContext(NULL, &context);
+    if (res != TEEC_SUCCESS)
+        errx(1, "TEEC_InitializeContext failed with code 0x%x", res);
 
-	/*
-	 * Open a session to the "hello world" TA, the TA will print "hello
-	 * world!" in the log when the session is created.
-	 */
-	res = TEEC_OpenSession(&ctx, &sess, &uuid,
-			       TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin);
-	if (res != TEEC_SUCCESS)
-		errx(1, "TEEC_Opensession failed with code 0x%x origin 0x%x",
-			res, err_origin);
+    /*
+     * Open a session to the "hello world" TA, the TA will print "hello
+     * world!" in the log when the session is created.
+     */
+    res = TEEC_OpenSession(&context, &session, &uuid,
+                           TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin);
+    if (res != TEEC_SUCCESS)
+        errx(1, "TEEC_Opensession failed with code 0x%x origin 0x%x",
+             res, err_origin);
 
-	/*
-	 * Execute a function in the TA by invoking it, in this case
-	 * we're incrementing a number.
-	 *
-	 * The value of command ID part and how the parameters are
-	 * interpreted is part of the interface provided by the TA.
-	 */
+    /*
+     * Execute a function in the TA by invoking it, in this case
+     * we're incrementing a number.
+     *
+     * The value of command ID part and how the parameters are
+     * interpreted is part of the interface provided by the TA.
+     */
 
-	/* Clear the TEEC_Operation struct */
-	memset(&op, 0, sizeof(op));
+    // 3. Allocate shared memory for the input tensor.
+    input_shm.size = INPUT_SIZE_BYTES;
+    input_shm.flags = TEEC_MEM_INPUT;
+    res = TEEC_AllocateSharedMemory(&context, &input_shm);
+    if (res != TEEC_SUCCESS)
+    {
+        printf("TEEC_AllocateSharedMemory (input) failed: 0x%x\n", res);
+        goto cleanup_session;
+    }
 
-	/*
-	 * Prepare the argument. Pass a value in the first parameter,
-	 * the remaining three parameters are unused.
-	 */
-	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_NONE,
-					 TEEC_NONE, TEEC_NONE);
-	op.params[0].value.a = 42;
+    // 4. Allocate shared memory for the output tensor.
+    output_shm.size = OUTPUT_SIZE_BYTES;
+    output_shm.flags = TEEC_MEM_OUTPUT;
+    res = TEEC_AllocateSharedMemory(&context, &output_shm);
+    if (res != TEEC_SUCCESS)
+    {
+        printf("TEEC_AllocateSharedMemory (output) failed: 0x%x\n", res);
+        goto cleanup_input;
+    }
 
-	/*
-	 * TA_HELLO_WORLD_CMD_INC_VALUE is the actual function in the TA to be
-	 * called.
-	 */
-	printf("Invoking TA to increment %d\n", op.params[0].value.a);
-	res = TEEC_InvokeCommand(&sess, TA_OPTEE_LLM_CMD_INC_VALUE, &op, //CHANGED OPTEE_LOGGER COMMAND NAME
-				 &err_origin);
-	if (res != TEEC_SUCCESS)
-		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
-			res, err_origin);
-	printf("TA incremented value to %d\n", op.params[0].value.a);
+    // 5. Allocate shared memory for the tensor dimensions structure.
+    dims_shm.size = sizeof(tensor_dims_t);
+    dims_shm.flags = TEEC_MEM_INPUT;
+    res = TEEC_AllocateSharedMemory(&context, &dims_shm);
+    if (res != TEEC_SUCCESS)
+    {
+        printf("TEEC_AllocateSharedMemory (dims) failed: 0x%x\n", res);
+        goto cleanup_output;
+    }
 
-	/*
-	 * We're done with the TA, close the session and
-	 * destroy the context.
-	 *
-	 * The TA will print "Goodbye!" in the log when the
-	 * session is closed.
-	 */
+    // 6. Initialize the input tensor.
+    // The input tensor is very large, so we fill it here using the shared memory.
+    {
+        float *input_data = (float *)input_shm.buffer;
+        for (size_t i = 0; i < INPUT_NUM_ELEMENTS; i++)
+        {
+            input_data[i] = 0.01f; // Test data for latency testing.
+        }
+    }
 
-	TEEC_CloseSession(&sess);
+    // 7. Prepare the tensor dimensions.
+    {
+        tensor_dims_t *dims = (tensor_dims_t *)dims_shm.buffer;
+        dims->batch_size = MAX_BATCH_SIZE;
+        dims->seq_length = MAX_SEQ_LENGTH;
+        dims->in_channels = IN_CHANNELS;
+    }
 
-	TEEC_FinalizeContext(&ctx);
+    // 8. Set up the operation parameters.
+    memset(&op, 0, sizeof(op));
+    op.paramTypes = TEEC_PARAM_TYPES(
+        TEEC_MEMREF_WHOLE, // Param0: Input tensor
+        TEEC_MEMREF_WHOLE, // Param1: Output tensor
+        TEEC_MEMREF_WHOLE, // Param2: Tensor dimensions
+        TEEC_NONE);
+    op.params[0].memref.parent = &input_shm;
+    op.params[1].memref.parent = &output_shm;
+    op.params[2].memref.parent = &dims_shm;
 
-	return 0;
+    // 9. Invoke the TA command.
+    res = TEEC_InvokeCommand(&session, TA_OPTEE_LLM_CMD_LORA, &op, &err_origin);
+    if (res != TEEC_SUCCESS)
+    {
+        printf("TEEC_InvokeCommand failed: 0x%x, origin: 0x%x\n", res, err_origin);
+        goto cleanup_dims;
+    }
+
+    // 10. Process and print the output tensor.
+    {
+        float *output_data = (float *)output_shm.buffer;
+        printf("Output Tensor:\n");
+        for (uint32_t sample = 0; sample < MAX_BATCH_SIZE; sample++)
+        {
+            printf("Sample %u: ", sample);
+            for (uint32_t c = 0; c < OUT_CHANNELS; c++)
+            {
+                printf("%f ", output_data[sample * OUT_CHANNELS + c]);
+            }
+            printf("\n");
+        }
+    }
+
+cleanup_dims:
+    TEEC_ReleaseSharedMemory(&dims_shm);
+cleanup_output:
+    TEEC_ReleaseSharedMemory(&output_shm);
+cleanup_input:
+    TEEC_ReleaseSharedMemory(&input_shm);
+cleanup_session:
+    TEEC_CloseSession(&session);
+    TEEC_FinalizeContext(&context);
+    return (res == TEEC_SUCCESS ? 0 : 1);
 }
