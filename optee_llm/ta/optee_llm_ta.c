@@ -36,20 +36,25 @@ float lora_A[OUT_CHANNELS][RANK];
 // Helper function to initialize the random data
 static void populate_random_data(void)
 {
-    uint32_t rand_val;
-    // Populate lora_B.
+    TEE_GenerateRandom(lora_B, sizeof(lora_B));
+    TEE_GenerateRandom(lora_A, sizeof(lora_A));
+    
+    // Scale the random values into the [0, 1) float range without math.h.
+    // Cast each float value to an int, apply modulo, then convert to float.
     for (int r = 0; r < RANK; r++) {
         for (int c = 0; c < IN_CHANNELS; c++) {
-            TEE_GenerateRandom(&rand_val, sizeof(rand_val));
-            // Create a float in [0, 1). Adjust scaling as needed.
-            lora_B[r][c] = (rand_val % 100) / 100.0f;
+            int temp = ((int)lora_B[r][c]) % 100;
+            if (temp < 0)
+                temp += 100;
+            lora_B[r][c] = temp / 100.0f;
         }
     }
-    // Populate lora_A.
     for (int o = 0; o < OUT_CHANNELS; o++) {
         for (int r = 0; r < RANK; r++) {
-            TEE_GenerateRandom(&rand_val, sizeof(rand_val));
-            lora_A[o][r] = (rand_val % 100) / 100.0f;
+            int temp = ((int)lora_A[o][r]) % 100;
+            if (temp < 0)
+                temp += 100;
+            lora_A[o][r] = temp / 100.0f;
         }
     }
 }
@@ -142,6 +147,8 @@ static TEE_Result run_lora_inference(uint32_t param_types, TEE_Param params[4])
 	// Param1: Output tensor MEMREF
 	// Param2: Tensor dimensions passed as MEMREF
 	const float scale = 1.0f;
+	
+	populate_random_data();
 	
 	const uint32_t expected_types =
 	    TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
