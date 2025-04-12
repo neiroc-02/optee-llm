@@ -136,7 +136,8 @@ int main(void)
         printf("TEEC_InvokeCommand failed: 0x%x, origin: 0x%x\n", res, err_origin);
         goto cleanup_dims;
     }
-
+    printf("Finished Tensor computations!");
+    /*
     // 10. Process and print the output tensor.
     {
         float *output_data = (float *)output_shm.buffer;
@@ -151,6 +152,7 @@ int main(void)
             printf("\n");
         }
     }
+    */
 
 cleanup_dims:
     TEEC_ReleaseSharedMemory(&dims_shm);

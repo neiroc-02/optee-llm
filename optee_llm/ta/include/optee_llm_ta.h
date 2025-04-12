@@ -46,6 +46,7 @@ typedef struct {
 #define IN_CHANNELS 2048
 #define RANK 4
 #define OUT_CHANNELS 3
+// Making the dimensions small
 #define MAX_BATCH_SIZE 8
 #define MAX_SEQ_LENGTH 128
 
