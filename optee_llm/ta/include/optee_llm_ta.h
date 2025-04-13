@@ -43,12 +43,12 @@ typedef struct {
 } tensor_dims_t;
 
 // Fixed dimensions for the LoRA branch (expected input channels)
-#define IN_CHANNELS 2048
-#define RANK 4
-#define OUT_CHANNELS 3
+#define IN_CHANNELS 100352
+#define RANK 1
+#define OUT_CHANNELS 200
 // Making the dimensions small
-#define MAX_BATCH_SIZE 8
-#define MAX_SEQ_LENGTH 128
+#define MAX_BATCH_SIZE 1
+#define MAX_SEQ_LENGTH 1
 
 #define TA_OPTEE_LLM_UUID \
 	{ 0x522fa39d, 0xb734, 0x4b30, \
@@ -57,6 +57,26 @@ typedef struct {
 /* The function IDs implemented in this TA */
 #define TA_OPTEE_LLM_CMD_INC_VALUE		0			// CHANGED THE NAME OF THE FUNCTIONS
 #define TA_OPTEE_LLM_CMD_DEC_VALUE		1
-#define TA_OPTEE_LLM_CMD_LORA		        2
+#define TA_OPTEE_LLM_CMD_LORA		    2
 
 #endif /*TA_OPTEE_LLM_H*/
+
+/* 
+AlexNet:
+    - CIFAR10 (IN: 2304, OUT: 10, RANK 1): Latency -> 0.8427
+    - CIFAR100 (IN: 2304, OUT: 100, RANK 1): Latency -> 0.8419 
+    - TinyImage (IN: 12544, OUT: 200, RANK 1): Latency -> 0.8426
+ResNet18:
+    - CIFAR10 (IN: 16384, OUT: 10, RANK 1): Latency -> 0.8438
+    - CIFAR100 (IN: 16384, OUT: 100, RANK 1): Latency -> 0.8441
+    - TinyImage (IN: 200704, OUT: 200, RANK 1): Latency -> 0.8598
+VGG: 
+    - CIFAR10 (IN: 2048, OUT: 10, RANK 1): Latency -> 0.8425
+    - CIFAR100 (IN: 2048, OUT: 100, RANK 1): Latency -> 0.8422
+    - TinyImage (IN: 100352, OUT: 200, RANK 1): Latency -> 0.8499 
+
+ViT:
+    - CIFAR10 (IN: 151296, OUT: 10, RANK 1): Latency -> 0.8539
+    - CIFAR100 (IN: 151296, OUT: 100, RANK 1): Latency -> 0.8542
+    - TinyImage (IN: 151296, OUT: 200, RANK 1): Latency -> 0.8541
+*/

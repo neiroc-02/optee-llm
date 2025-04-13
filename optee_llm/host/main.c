@@ -136,7 +136,7 @@ int main(void)
         printf("TEEC_InvokeCommand failed: 0x%x, origin: 0x%x\n", res, err_origin);
         goto cleanup_dims;
     }
-    printf("Finished Tensor computations!");
+    printf("Finished Tensor computations!\n");
     /*
     // 10. Process and print the output tensor.
     {
